@@ -1,0 +1,128 @@
+name: Automatisation des tests
+
+on: push
+
+jobs:
+  Compilation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compilation et tests CMake
+        run: |
+          mkdir build && cd build
+          cmake ..
+          make
+          ctest --output-on-failure
+
+  Test_Add:
+    runs-on: ubuntu-latest
+    needs: Compilation
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: |
+          mkdir -p build
+          cd build
+          cmake ..
+          make
+
+      - name: Run test "add" and capture report
+        run: |
+          cd build
+          set -e
+          echo "== Test add 10 5 ==" > report.txt
+          ./src/calculator add 10 5 | tee -a report.txt
+          echo "Exit code: $?" >> report.txt
+
+      - name: Upload report as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-add-report
+          path: build/report.txt
+          retention-days: 14
+
+      - name: Job summary (facultatif mais pratique)
+        run: |
+          echo "### Résultat du test *add*" >> $GITHUB_STEP_SUMMARY
+          echo '' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat build/report.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  Test_sub:
+    needs: Compilation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir build && cd build && cmake .. && make
+          ./src/calculator sub 3 -2
+
+  Test_mul:
+    needs: Compilation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir build && cd build && cmake .. && make
+          ./src/calculator mul 5 5
+
+  Test_div:
+    needs: Compilation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir build && cd build && cmake .. && make
+          ./src/calculator div 1 5
+
+  Test_car:
+    needs: Compilation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: |
+          mkdir -p build
+          cd build
+          cmake ..
+          make
+
+      - name: Run test "car" and capture report
+        run: |
+          cd build
+          set -e
+          echo "== Test fonction carré ==" > report.txt
+          echo "Commande : ./src/calculator car 5" >> report.txt
+          echo "Résultat attendu : 25.000000" >> report.txt
+          echo "" >> report.txt
+          ./src/calculator car 5 | tee -a report.txt
+          echo "" >> report.txt
+          echo "Code de retour : $?" >> report.txt
+
+      - name: Upload rapport du test carré
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-car-report
+          path: build/report.txt
+          retention-days: 30
+
+      - name: Résumé du test carré
+        run: |
+          echo "### Test fonction carré (car)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat build/report.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  Deploy:
+    needs: [Test_add, Test_sub, Test_mul, Test_div, Test_car]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Déploiement de la solution
+        run: echo "Déploiement de la solution"
+
